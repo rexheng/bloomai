@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PointsDisplay } from '@/components/gamification/PointsDisplay';
 import { ShopModal } from '@/components/shop/ShopModal';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Menu, X } from 'lucide-react';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -15,6 +15,7 @@ export default function Home() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<any[]>([]);
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   useEffect(() => {
@@ -117,8 +118,48 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-sage-50">
-        {/* Sidebar Placeholder */}
+    <div className="flex h-screen bg-sage-50 overflow-hidden">
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-50 bg-black/50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="absolute left-0 top-0 h-full w-64 bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="font-bold text-lg text-sage-800">Bloom</h2>
+                        <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 hover:bg-sage-100 rounded-full">
+                            <X size={20} className="text-sage-600" />
+                        </button>
+                    </div>
+                    <div className="space-y-4">
+                        <PointsDisplay variant="full" />
+                        <div className="h-px bg-sage-200 my-4" />
+                        <div className="space-y-2">
+                            <div 
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="p-2 bg-sage-100 rounded-lg text-sage-900 font-medium cursor-pointer"
+                            >
+                                Chat
+                            </div>
+                            <div 
+                                onClick={() => {
+                                    setIsShopOpen(true);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className="p-2 hover:bg-sage-100 rounded-lg text-sage-700 cursor-pointer flex items-center gap-2 transition-colors"
+                            >
+                                <ShoppingBag size={18} />
+                                <span>Garden Shop</span>
+                            </div>
+                            <div className="p-2 hover:bg-sage-50 rounded-lg text-sage-500 cursor-not-allowed">Room (Coming Soon)</div>
+                        </div>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                        <button onClick={() => supabase.auth.signOut().then(() => setUser(null))} className="text-sm text-sage-500 hover:text-sage-800 w-full text-left p-2 hover:bg-sage-50 rounded">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Sidebar (Desktop) */}
         <div className="hidden md:flex flex-col w-64 bg-white border-r border-sage-200 p-4">
             <h2 className="font-bold text-lg mb-4 text-sage-800">Bloom</h2>
             <div className="space-y-4">
@@ -142,12 +183,20 @@ export default function Home() {
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
-            <header className="h-14 border-b bg-white/50 flex items-center px-6 justify-between">
-                <span className="font-medium text-sage-900">Your Companion</span>
-                <span className="text-sm text-sage-500">Streak: 0 days</span>
+        <div className="flex-1 flex flex-col w-full">
+            <header className="h-14 border-b bg-white/50 flex items-center px-4 md:px-6 justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                    <button 
+                        className="md:hidden p-1 -ml-2 hover:bg-sage-100 rounded-full text-sage-600"
+                        onClick={() => setIsMobileMenuOpen(true)}
+                    >
+                        <Menu size={24} />
+                    </button>
+                    <span className="font-medium text-sage-900">Your Companion</span>
+                </div>
+                <span className="text-sm text-sage-500 hidden sm:inline">Streak: 0 days</span>
             </header>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden relative">
                 <ChatInterface 
                     key={conversationId} // Remount when history is loaded
                     conversationId={conversationId} 

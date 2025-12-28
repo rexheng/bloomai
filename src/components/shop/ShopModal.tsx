@@ -86,12 +86,12 @@ export function ShopModal({ isOpen, onClose }: ShopModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-black/20 backdrop-blur-sm">
            <motion.div 
              initial={{ opacity: 0, scale: 0.95 }}
              animate={{ opacity: 1, scale: 1 }}
              exit={{ opacity: 0, scale: 0.95 }}
-             className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden"
+             className="bg-white md:rounded-2xl shadow-xl w-full max-w-4xl h-full md:h-[80vh] flex flex-col overflow-hidden"
            >
               {/* Header */}
               <div className="p-6 border-b border-sage-100 flex items-center justify-between bg-sage-50/50">

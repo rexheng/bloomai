@@ -102,9 +102,9 @@ export function ChatInterface({ conversationId: initialConvId, initialMessages =
   };
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-full md:gap-4 md:p-4">
        {/* Main Chat Area */}
-       <div className="flex-1 flex flex-col h-full relative rounded-2xl overflow-hidden bg-white/40 shadow-sm border border-sage-100">
+       <div className="flex-1 flex flex-col h-full relative md:rounded-2xl overflow-hidden bg-white/40 shadow-sm md:border border-sage-100">
           <div className="flex-1 overflow-y-auto p-4 space-y-6" ref={scrollRef}>
             {messages.length === 0 && (
                 <div className="text-center text-muted-foreground mt-20">
