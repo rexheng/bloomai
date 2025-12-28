@@ -15,33 +15,56 @@ export async function POST(req: NextRequest) {
 
   let dbClient = supabase;
   let userProfile: any = null;
+  let userId = user?.id;
 
-  if (!user) {
+  if (!userId) {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     console.warn("Using Dev Bypass User ID in Chat API");
     // Mock user for dev
-    user = { id: 'fd998a0a-e068-4fef-af1a-d10267318f9b' } as any;
+    userId = 'fd998a0a-e068-4fef-af1a-d10267318f9b';
     // Use Admin client to bypass RLS since we have no session
     dbClient = createAdminClient();
     
-    // Mock profile for dev
-    userProfile = {
-        display_name: 'Traveler',
-        current_streak: 0,
-        total_points: 0,
-        unlocked_items: []
-    };
+    // Try to fetch actual profile for dev user
+    const { data: profile } = await dbClient
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+    if (profile) {
+        const { data: items } = await dbClient
+            .from('user_items')
+            .select('*, items(*)')
+            .eq('user_id', userId);
+            
+        userProfile = {
+            ...profile,
+            unlocked_items: items?.map((i: any) => i.items.name) || []
+        };
+    } else {
+        // Fallback if no profile exists yet
+        userProfile = {
+            display_name: 'Traveler',
+            current_streak: 0,
+            total_points: 0,
+            unlocked_items: []
+        };
+    }
   } else {
       // Fetch actual profile
       const { data: profile } = await dbClient
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single();
       
       const { data: items } = await dbClient
         .from('user_items')
         .select('*, items(*)')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
         
       userProfile = {
           ...profile,
@@ -185,7 +208,7 @@ Remember: You're here to make journalling feel rewarding, not like a chore.`;
                  
                  // Log activity for check-in
                  await dbClient.from('activity_log').insert({
-                     user_id: user!.id,
+                     user_id: userId,
                      activity_type: 'daily_check_in',
                      points_earned: pointsToAdd
                  });
@@ -211,7 +234,7 @@ Remember: You're here to make journalling feel rewarding, not like a chore.`;
                  })
              };
 
-             const { error: updateError } = await dbClient.from('profiles').update(updates).eq('id', user!.id);
+             const { error: updateError } = await dbClient.from('profiles').update(updates).eq('id', userId);
                  
              if (updateError) {
                  console.error("Error updating profile stats:", updateError);

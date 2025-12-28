@@ -10,6 +10,9 @@ export async function POST(request: Request) {
 
   // DEV BYPASS
   if (!user) {
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     user = { id: 'fd998a0a-e068-4fef-af1a-d10267318f9b' } as any;
     dbClient = createAdminClient();
   }

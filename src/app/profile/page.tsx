@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import ProfileView from '@/components/profile/ProfileView';
 
@@ -13,12 +14,14 @@ export default async function ProfilePage() {
   let profile = null;
   
   if (!user) {
-    console.log('⚠️ Using Mock User for Profile Page');
+    console.log('⚠️ Using Dev Bypass User for Profile Page');
+    const DEV_USER_ID = 'fd998a0a-e068-4fef-af1a-d10267318f9b';
+    
     user = {
-      id: 'mock-user-id',
-      email: 'guest@bloom.com',
+      id: DEV_USER_ID,
+      email: 'dev@bloom.com',
       user_metadata: {
-        full_name: 'Guest Explorer',
+        full_name: 'Dev Explorer',
         avatar_url: null
       },
       app_metadata: {},
@@ -28,15 +31,27 @@ export default async function ProfilePage() {
       updated_at: new Date().toISOString(),
     } as any;
 
-    profile = {
-      id: 'mock-user-id',
-      display_name: 'Guest Explorer',
-      avatar_url: null,
-      total_points: 100,
-      current_streak: 3,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    // Fetch REAL profile for dev user
+    const adminClient = createAdminClient();
+    const { data } = await adminClient
+      .from('profiles')
+      .select('*')
+      .eq('id', DEV_USER_ID)
+      .single();
+      
+    profile = data;
+    
+    if (!profile) {
+        // Fallback if DB is empty for this user
+        profile = {
+            id: DEV_USER_ID,
+            display_name: 'Dev Explorer',
+            total_points: 0,
+            current_streak: 0,
+            xp: 0,
+            level: 1
+        };
+    }
   } else {
     const { data } = await supabase
       .from('profiles')
