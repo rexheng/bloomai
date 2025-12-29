@@ -1,0 +1,6 @@
+[auth.external.google]
+enabled = true
+client_id = "562921520388-dqm2hpg52mmin3r5fj893fqmu3k1rjse.apps.googleusercontent.com"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+redirect_uri = "http://localhost:3000"
+skip_nonce_check = false

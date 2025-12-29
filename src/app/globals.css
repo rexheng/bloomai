@@ -108,3 +108,74 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom animations for Bloom character and UI */
+@keyframes bloom-idle {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+  75% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+}
+
+@keyframes bounce-once {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes speech-bubble {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes drawer-slide-up {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-bloom-idle {
+  animation: bloom-idle 4s ease-in-out infinite;
+}
+
+.animate-bounce-once {
+  animation: bounce-once 0.3s ease-out;
+}
+
+.animate-speech-bubble {
+  animation: speech-bubble 0.4s ease-out;
+}
+
+.animate-drawer-up {
+  animation: drawer-slide-up 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}

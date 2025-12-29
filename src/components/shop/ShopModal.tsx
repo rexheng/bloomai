@@ -26,18 +26,30 @@ export function ShopModal({ isOpen, onClose }: ShopModalProps) {
   const [userItems, setUserItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch Items & User Inventory
   useEffect(() => {
     if (isOpen) {
         setLoading(true);
+        setError(null);
         const fetchData = async () => {
             try {
                 // 1. Fetch Items
                 const res = await fetch('/api/shop/items');
                 if (res.ok) {
                     const data = await res.json();
-                    setItems(data);
+                    if (Array.isArray(data)) {
+                        setItems(data);
+                    } else {
+                        console.error("Shop data is not an array:", data);
+                        setError("Invalid data format from server");
+                    }
+                } else {
+                    const err = await res.json();
+                    console.error("Shop fetch error:", err);
+                    setError(err.error || "Failed to load items");
                 }
 
                 // 2. Fetch User Inventory
@@ -49,6 +61,7 @@ export function ShopModal({ isOpen, onClose }: ShopModalProps) {
                 
             } catch (err) {
                 console.error("Failed to load shop", err);
+                setError("Network error loading shop");
             } finally {
                 setLoading(false);
             }
@@ -116,6 +129,10 @@ export function ShopModal({ isOpen, onClose }: ShopModalProps) {
               <div className="flex-1 overflow-y-auto p-6 bg-sage-50/30">
                   {loading ? (
                        <div className="text-center py-12 text-sage-400">Loading shop items...</div>
+                  ) : error ? (
+                       <div className="text-center py-12 text-red-400">{error}</div>
+                  ) : items.length === 0 ? (
+                       <div className="text-center py-12 text-sage-400">No items available in the shop.</div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {items.map((item) => {
@@ -123,19 +140,18 @@ export function ShopModal({ isOpen, onClose }: ShopModalProps) {
                             return (
                                 <div key={item.id} className="bg-white p-4 rounded-xl border border-sage-100 shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow">
                                     <div className="aspect-square bg-sage-50 rounded-lg flex items-center justify-center relative overflow-hidden group">
-                                        <img 
-                                            src={item.image_url} 
-                                            alt={item.name}
-                                            className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-110"
-                                            onError={(e) => {
-                                                // Fallback if image fails
-                                                e.currentTarget.style.display = 'none';
-                                                e.currentTarget.parentElement?.classList.add('fallback-emoji');
-                                            }}
-                                        />
-                                        <div className="hidden fallback-emoji text-4xl">
-                                             {item.category === 'plant' ? '🌿' : '🪑'}
-                                        </div>
+                                        {!failedImages.has(item.id) ? (
+                                            <img 
+                                                src={item.image_url} 
+                                                alt={item.name}
+                                                className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-110"
+                                                onError={() => setFailedImages(prev => new Set(prev).add(item.id))}
+                                            />
+                                        ) : (
+                                            <div className="text-4xl">
+                                                 {item.category === 'plant' ? '🌿' : '🪑'}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <div className="flex justify-between items-start">
