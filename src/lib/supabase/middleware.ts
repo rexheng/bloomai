@@ -41,6 +41,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Skip redirect for API routes - they handle auth themselves
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return response;
+  }
+
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&

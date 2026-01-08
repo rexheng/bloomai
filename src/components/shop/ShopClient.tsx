@@ -30,7 +30,7 @@ export function ShopClient({ initialItems }: ShopClientProps) {
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const invRes = await fetch('/api/shop/inventory');
+        const invRes = await fetch('/api/shop/inventory?format=ids');
         if (invRes.ok) {
           const params = await invRes.json();
           setUserItems(new Set(params));
@@ -60,7 +60,7 @@ export function ShopClient({ initialItems }: ShopClientProps) {
               alert(`Bought ${item.name}!`);
               setUserItems(prev => new Set(prev).add(item.id));
               // Trigger point refresh? 
-              window.location.reload(); // Brute force refresh for MVP
+              // window.location.reload(); // Brute force refresh for MVP
           } else {
               alert(data.error || 'Failed to buy');
           }

@@ -8,9 +8,10 @@ interface PointsDisplayProps {
   initialPoints?: number;
   initialStreak?: number;
   variant?: 'minimal' | 'full';
+  refreshTrigger?: number;
 }
 
-export function PointsDisplay({ initialPoints = 0, initialStreak = 0, variant = 'full' }: PointsDisplayProps) {
+export function PointsDisplay({ initialPoints = 0, initialStreak = 0, variant = 'full', refreshTrigger = 0 }: PointsDisplayProps) {
   const [points, setPoints] = useState(initialPoints);
   const [streak, setStreak] = useState(initialStreak);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export function PointsDisplay({ initialPoints = 0, initialStreak = 0, variant = 
     
     // Only fetch if we suspect stale or need init
     fetchPoints();
-  }, []);
+  }, [refreshTrigger]);
 
   if (variant === 'minimal') {
       return (

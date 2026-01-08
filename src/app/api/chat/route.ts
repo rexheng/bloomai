@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { bloomSystemPrompt, buildUserContext, handlePotentialCrisis } from '@/lib/bloom';
 
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -18,59 +19,27 @@ export async function POST(req: NextRequest) {
   let userId = user?.id;
 
   if (!userId) {
-    // if (process.env.NODE_ENV !== 'development') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
-    console.warn("Using Dev Bypass User ID in Chat API");
-    // Mock user for dev
-    userId = 'fd998a0a-e068-4fef-af1a-d10267318f9b';
-    // Use Admin client to bypass RLS since we have no session
-    dbClient = createAdminClient();
-    
-    // Try to fetch actual profile for dev user
-    const { data: profile } = await dbClient
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-    if (profile) {
-        const { data: items } = await dbClient
-            .from('user_items')
-            .select('*, items(*)')
-            .eq('user_id', userId);
-            
-        userProfile = {
-            ...profile,
-            unlocked_items: items?.map((i: any) => i.items.name) || []
-        };
-    } else {
-        // Fallback if no profile exists yet
-        userProfile = {
-            display_name: 'Traveler',
-            current_streak: 0,
-            total_points: 0,
-            unlocked_items: []
-        };
-    }
-  } else {
-      // Fetch actual profile
-      const { data: profile } = await dbClient
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      const { data: items } = await dbClient
-        .from('user_items')
-        .select('*, items(*)')
-        .eq('user_id', userId);
-        
-      userProfile = {
-          ...profile,
-          unlocked_items: items?.map((i: any) => i.items.name) || []
-      };
+      // Dev bypass - same pattern as conversations route
+      userId = 'fd998a0a-e068-4fef-af1a-d10267318f9b';
+      dbClient = createAdminClient();
   }
+
+  // Fetch actual profile
+  const { data: profile } = await dbClient
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  const { data: items } = await dbClient
+    .from('user_items')
+    .select('*, items(*)')
+    .eq('user_id', userId);
+    
+  userProfile = {
+      ...profile,
+      unlocked_items: items?.map((i: any) => i.items.name) || []
+  };
 
 
   try {
@@ -82,7 +51,31 @@ export async function POST(req: NextRequest) {
 
     const lastMessage = messages[messages.length - 1]; // User's latest message
 
-    // 2. Persist User Message
+    // 2. Crisis Detection (Always First)
+    const crisisCheck = await handlePotentialCrisis(lastMessage.content, userId);
+    if (crisisCheck.skipNormalProcessing && crisisCheck.response) {
+      // Save user message and crisis response
+      if (conversationId) {
+        await dbClient.from('messages').insert({
+          conversation_id: conversationId,
+          role: 'user',
+          content: lastMessage.content
+        });
+        await dbClient.from('messages').insert({
+          conversation_id: conversationId,
+          role: 'assistant',
+          content: crisisCheck.response
+        });
+      }
+      
+      // Return crisis response immediately (not streamed)
+      return NextResponse.json({ 
+        response: crisisCheck.response, 
+        isCrisis: true 
+      });
+    }
+
+    // 3. Persist User Message
     if (conversationId) {
          const { error: insertError } = await dbClient.from('messages').insert({
             conversation_id: conversationId,
@@ -107,41 +100,19 @@ export async function POST(req: NextRequest) {
       parts: [{ text: m.content }],
     }));
 
-    // 4. Construct System Instruction with Context
-    const systemInstruction = `You are Bloom, a warm and supportive AI companion in a productivity journalling app. Your role is to:
+    // 4. Build Dynamic User Context
+    const userContext = buildUserContext(userProfile, { 
+      messageCount: history.length 
+    });
 
-1. CELEBRATE the user's accomplishments, no matter how small
-2. ENCOURAGE reflection on their day and goals
-3. ASK thoughtful follow-up questions
-4. SUGGEST gentle improvements without being preachy
-5. REMEMBER context from the conversation
+    // 5. Construct Full System Instruction (Bloom + Context)
+    const fullSystemInstruction = bloomSystemPrompt + userContext;
 
-Your personality:
-- Warm and friendly, like a supportive friend
-- Gently enthusiastic, not over-the-top
-- Non-judgemental and accepting
-- Curious about the user's life
-- Occasionally playful but always respectful
-
-Guidelines:
-- Keep responses concise (2-4 sentences typically)
-- Use encouraging language
-- Avoid giving unsolicited advice
-- Never dismiss or minimise user's feelings
-- If user seems stressed, prioritise empathy over productivity
-
-User's current progress:
-- Current streak: ${userProfile?.current_streak || 0} days
-- Total points: ${userProfile?.total_points || 0}
-- Recently unlocked: ${userProfile?.unlocked_items?.slice(0, 3).join(', ') || 'None'}
-
-Remember: You're here to make journalling feel rewarding, not like a chore.`;
-
-    // 5. Initialize Chat (Standard Pattern)
+    // 6. Initialize Chat (Standard Pattern)
     // Using gemini-2.5-flash as it is available in this environment
     const model = client.getGenerativeModel({ 
         model: 'gemini-2.5-flash',
-        systemInstruction: systemInstruction 
+        systemInstruction: fullSystemInstruction 
     });
 
     const chat = model.startChat({
@@ -176,7 +147,19 @@ Remember: You're here to make journalling feel rewarding, not like a chore.`;
              });
              
 
-             // 8. Award Points & XP
+             // 8. Award XP & Level (Atomic RPC)
+             const xpPerMessage = 10;
+             const { error: rpcError } = await dbClient.rpc('increment_user_stats', {
+                 user_id: userId,
+                 xp_delta: xpPerMessage,
+                 messages_delta: 1
+             });
+             
+             if (rpcError) {
+                console.error("Error incrementing user stats:", rpcError);
+             }
+
+             // 9. Daily Check-in & Points
              const today = new Date().toISOString().split('T')[0];
              let pointsToAdd = 0;
              let newStreak = userProfile?.current_streak || 0;
@@ -194,12 +177,7 @@ Remember: You're here to make journalling feel rewarding, not like a chore.`;
                      if (isYesterday) {
                          newStreak += 1;
                      } else {
-                        // Reset streak if missed a day (optional, strict mode)
-                        // For MVP, requirements say: "Grace period: streak maintained if user returns within 48 hours" implies loose comparison
-                        // But let's keep it simple: if not yesterday, it stays same or resets? 
-                        // MVP req: "Daily streak counter (consecutive days)". 
-                        // If we want strict reset: newStreak = 1;
-                        // Existing logic didn't reset, it just didn't increment. Let's stick to safe increment logic for now.
+                        // Loose reset logic as per MVP requirements
                         if (!isYesterday) newStreak = 1; 
                      }
                  } else {
@@ -217,30 +195,22 @@ Remember: You're here to make journalling feel rewarding, not like a chore.`;
                  });
              }
 
-             // XP & Level Logic (Per Message)
-             const xpPerMessage = 10;
-             const newMessagesSent = (userProfile?.messages_sent || 0) + 1;
-             const newXp = (userProfile?.xp || 0) + xpPerMessage;
-             const newLevel = Math.floor(newXp / 100) + 1;
+             // Update Profile for Daily Check-in only (Points, Streak, Date)
+             if (pointsToAdd > 0 || lastActiveDate !== userProfile?.last_active_date) {
+                 const updates: any = {
+                     ...(lastActiveDate !== userProfile?.last_active_date && { last_active_date: lastActiveDate }),
+                     ...(newStreak !== userProfile?.current_streak && { current_streak: newStreak }),
+                     ...(pointsToAdd > 0 && { 
+                         total_points: (userProfile?.total_points || 0) + pointsToAdd,
+                         current_points: (userProfile?.current_points || 0) + pointsToAdd 
+                     })
+                 };
 
-             // Update Profile
-             const updates: any = {
-                 messages_sent: newMessagesSent,
-                 xp: newXp,
-                 level: newLevel,
-                 // Only update these if changed/applicable
-                 ...(lastActiveDate !== userProfile?.last_active_date && { last_active_date: lastActiveDate }),
-                 ...(newStreak !== userProfile?.current_streak && { current_streak: newStreak }),
-                 ...(pointsToAdd > 0 && { 
-                     total_points: (userProfile?.total_points || 0) + pointsToAdd,
-                     current_points: (userProfile?.current_points || 0) + pointsToAdd 
-                 })
-             };
-
-             const { error: updateError } = await dbClient.from('profiles').update(updates).eq('id', userId);
-                 
-             if (updateError) {
-                 console.error("Error updating profile stats:", updateError);
+                 const { error: updateError } = await dbClient.from('profiles').update(updates).eq('id', userId);
+                     
+                 if (updateError) {
+                     console.error("Error updating daily stats:", updateError);
+                 }
              }
           }
 

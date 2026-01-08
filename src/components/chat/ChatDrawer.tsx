@@ -107,8 +107,6 @@ export function ChatDrawer({
           <ChatInterface
             conversationId={conversationId}
             initialMessages={initialMessages}
-            journalMode={journalMode}
-            initialPrompt={initialPrompt}
           />
         </div>
 

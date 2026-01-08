@@ -10,6 +10,10 @@ interface BloomCharacterProps {
   onTap: () => void;
   speechBubble?: string;
   size?: 'sm' | 'md' | 'lg';
+  /** When true, avatar is displayed within the room context */
+  isInRoom?: boolean;
+  /** When true, conversation is active */
+  isActive?: boolean;
 }
 
 const moodEmojis = {
@@ -31,7 +35,9 @@ export function BloomCharacter({
   isGreeting = true,
   onTap, 
   speechBubble,
-  size = 'lg'
+  size = 'lg',
+  isInRoom = false,
+  isActive = false,
 }: BloomCharacterProps) {
   const [currentGreeting, setCurrentGreeting] = useState('');
   const [isHovered, setIsHovered] = useState(false);
@@ -57,7 +63,8 @@ export function BloomCharacter({
     lg: 'w-56 h-56 md:w-64 md:h-64',
   };
 
-  const displayMessage = speechBubble || currentGreeting;
+  // In room mode with active conversation, don't show greeting bubble (conversation overlay handles messages)
+  const displayMessage = isInRoom && isActive ? undefined : (speechBubble || currentGreeting);
 
   return (
     <div className="flex flex-col items-center gap-4">

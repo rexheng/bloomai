@@ -111,7 +111,8 @@
 
 /* Custom animations for Bloom character and UI */
 @keyframes bloom-idle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotate(0deg);
   }
   25% {
@@ -123,7 +124,8 @@
 }
 
 @keyframes bounce-once {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
@@ -178,4 +180,95 @@
 
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
+}
+
+/* Room-specific animations */
+@keyframes plant-sway {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes gentle-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes menu-slide-in {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-plant-sway {
+  animation: plant-sway 3s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-gentle-float {
+  animation: gentle-float 4s ease-in-out infinite;
+}
+
+.animate-menu-slide {
+  animation: menu-slide-in 0.3s ease-out;
+}
+
+/* Playful prompt bubble animations */
+@keyframes bubble-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(10px);
+  }
+  50% {
+    transform: scale(1.08) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes gentle-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bubble-pop {
+  animation: bubble-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.animate-gentle-bounce-slow {
+  animation: gentle-bounce 2s ease-in-out infinite;
 }
